@@ -1,138 +1,110 @@
 #include <iostream>
 #include <functional>
 #include <vector>
-
 #include "gtest/gtest.h"
 
 using namespace std;
 
-class Thing {
+class Thing{
 public:
+    int num;
     int id;
-    int thingNum;
-    string name;
-    Thing(int id = 0);
+    Thing(int id);
 };
 
 Thing::Thing(int id) {
     this->id = id;
 }
 
-// return number from 1 to maxValue inclusive
-int random(int maxValue) {
-    return rand() % maxValue + 1;
-}
-
-// ids will range from 1 to maxId
-// thingNum will be ascending order
-vector<Thing> makeRandomThings(int count, int maxId)
-{
-    vector<Thing> things;
-
-    for (int i = 0; i < count; i++) {
-        things.push_back(Thing{random(maxId)});
-    }
-
-    for (int i = 0; i < count; i++) {
-        things[i].thingNum = i+1;
-    }
-
-    return things;
-}
-
-void printVector(vector<Thing> values)
-{
-    for (unsigned int i = 0; i < values.size(); i++) {
-        cout << values[i].thingNum << ", " << values[i].id << endl;
-    }
-}
-
-// assuming already sorted
-bool isStable(vector<Thing> values){
-    for (int i = 0; i < (int)values.size()-1; i++) {
-        if (values[i].id == values[i+1].id) {
-            if (values[i].thingNum > values[i+1].thingNum) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-bool isSorted(vector<Thing> values) {
+bool isSorted(const vector<Thing>& values, function<bool(const Thing& a, const Thing& b)> comp) {
     for (unsigned int i = 1; i < values.size(); i++) {
-        if (values[i].id < values[i-1].id) {
+        if (comp(values[i], values[i-1])) {
             return false;
         }
     }
     return true;
 }
 
-void Merge(vector<Thing> vec, int low, int high, int middle)
-{
-    int l, j, k;
+void printVector(vector<Thing> things){
+    for(unsigned int i = 0; i < things.size(); i++){
+        cout << things[i].id << ", " << things[i].num << endl;
+    }
+}
+
+bool compareThingsById(Thing a, Thing b){
+    return a.id <= b.id;
+}
+
+void merge(vector<Thing>& values, int low, int high, int mid, function<bool(Thing, Thing)> comp){
+
     vector<Thing> temp;
-    l = low;
-    j = middle + 1;
 
-    while (l <= middle && j <= high)
-    {
-        if (vec[l].id < vec[j].id)
-        {
-            temp.push_back(vec[l]);
-            l++;
+    int LIndex = low;
+    int MIndex = mid + 1;
+
+    while(LIndex <= mid && MIndex <= high){
+
+        if(comp(values[LIndex], values[MIndex])){
+            temp.push_back(values[LIndex]);
+            LIndex++;
         }
-        else
-        {
-            temp.push_back(vec[j]);
-            j++;
+        else{
+            temp.push_back(values[MIndex]);
+            MIndex++;
         }
     }
 
-    while (l <= middle)
-    {
-        temp.push_back(vec[l]);
-        l++;
+    while(LIndex <= mid){
+        temp.push_back(values[LIndex]);
+        LIndex++;
     }
 
-    while (j <= high)
-    {
-        temp.push_back(vec[j]);
-        j++;
+    while(MIndex <= high){
+        temp.push_back(values[MIndex]);
+        MIndex++;
     }
 
-    for (l = low; l <= high; l++)
-    {
-        vec.clear();
-        vec = temp;
+    for (int i = low; i <= high; i++){
+        values[i] = temp[i-low];
     }
 }
 
-// A function to split array into two parts.
-void MergeSort(vector<Thing> vec, int low, int high)
-{
-    int middle;
-    if (low < high)
-    {
-        middle=(low+high)/2;
-        MergeSort(vec, low, middle);
-        MergeSort(vec, middle+1, high);
+void mergeSortR(vector<Thing>& vec, int LIndex, int HIndex, function<bool(Thing, Thing)> comp){
 
-        Merge(vec, low, high, middle);
+    int MIndex;
+
+    if(LIndex < HIndex){
+        MIndex = (LIndex+HIndex)/2;
+        mergeSortR(vec, LIndex, MIndex, comp);
+        mergeSortR(vec, MIndex+1, HIndex, comp);
+        merge(vec, LIndex, HIndex, MIndex, comp);
     }
+
 }
 
-int main(){
-    Thing a = 8;
-    Thing b = 2;
-    Thing c = 0;
-    Thing d = 3;
-    Thing e = 5;
-    vector<Thing> v{a,b,c,d,e};
+void mergeSort(vector<Thing>& vec, function<bool(Thing, Thing)> comp){
+    int LIndex = 0;
+    int HIndex = vec.size()-1;
 
-    printVector(v);
-    MergeSort(v,0,4);
-    printVector(v);
-
-    return 0;
+    mergeSortR(vec, LIndex, HIndex, comp);
 }
+
+TEST(SortTest, isVectorSorted) {
+    Thing a(1);
+    Thing b(5);
+    Thing c(7);
+    Thing d(2);
+    vector<Thing> v;
+    v.push_back(a);
+    v.push_back(b);
+    v.push_back(c);
+    v.push_back(d);
+    mergeSort(v, compareThingsById);
+    ASSERT_TRUE(isSorted(v, compareThingsById));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+
